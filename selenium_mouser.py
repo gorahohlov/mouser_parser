@@ -1,10 +1,11 @@
-import pickle
+# import pickle
 import json
 
-from fake_useragent import UserAgent
 from selenium import webdriver
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.common.window import WindowTypes
+from lxml import html
+from fake_useragent import UserAgent
 
 # from selenium.webdriver.chrome.options import Options
 # from selenium.webdriver.chrome.service import Service
@@ -12,21 +13,24 @@ from selenium.webdriver.common.window import WindowTypes
 
 WEBDRIVER_SERVICE_DIR = r'c:/users/user/dev/mouser_parse_proj/wd_service_dir/'
 EXTENSION_PATH = r'c:/users/user/dev/mouser_parse_proj/browsec_ext.crx'
-URL = ('https://www.mouser.com/ProductDetail/ISSI/IS43DR16128B-25EBLI?qs='
-       + 'abmNkq9no6AZ%252BuuB8Bpieg%3D%3D'
+URL = ('https://eu.mouser.com/ProductDetail/Altera/EPCS1SI8N?qs='
+       + 'jblrfmjbeiEDfo5ju%2FfMLw%3D%3D'
        )
-# URL_1 = 'https://www.chipdip.ru/product/ecs-3953m-500-bn-tr-1'
+URL_1 = 'https://www.chipdip.ru/product/ecs-3953m-500-bn-tr-1'
 FILE_NAME = r'c:/users/user/dev/mouser_parse_proj/mouser_cookies.json'
 PATH = r'c:/users/user/dev/mouser_parse_proj/'
+USER_AGENT = ('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+              + ' (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36'
+              )
 
 
-def save_cookies(file_name='cookies.pkl'):
-    with open(file_name, 'wb') as file:
-        pickle.dump(driver.get_cookies(), file)
+# def save_cookies(file_name='cookies.pkl'):
+#     with open(file_name, 'wb') as file:
+#         pickle.dump(driver.get_cookies(), file)
 
 
 def edit_cookies(file_name=None, imported_cookies=None):
-    """preprocessing imported cookies to selenium webdriver add_cookies
+    """Preprocessing imported cookies to selenium webdriver add_cookies
     method format"""
     valid_cookies_keys = {'httpOnly', 'value', 'name', 'domain',
                           'secure', 'path', 'expiry', 'sameSite'}
@@ -87,11 +91,11 @@ def gen_cookies_file(json_file=None, json_cookies=None):
             file.write(line)
 
 
-def load_cookies(file_name='cookies.pkl'):
-    with open(file_name, 'rb') as file:
-        cookies = pickle.load(file)
-        for cookie in cookies:
-            driver.add_cookie(cookie)
+# def load_cookies(file_name='cookies.pkl'):
+#     with open(file_name, 'rb') as file:
+#         cookies = pickle.load(file)
+#         for cookie in cookies:
+#             driver.add_cookie(cookie)
 
 
 def save_json_cookies(file_name=FILE_NAME):
@@ -108,7 +112,7 @@ def load_json_cookies(file_name=FILE_NAME):
 
 if __name__ == '__main__':
 
-    gen_cookies_file(json_file=FILE_NAME)
+#     edit_cookies(file_name=FILE_NAME)
 #     with open(r'c:/users/user/desktop/mouser_cookies.json', 'r') as file:
 #         cookies = json.load(file)
 #     edit_cookies(imported_cookies=cookies)
@@ -120,7 +124,9 @@ if __name__ == '__main__':
 #     options = Options()
     options = webdriver.ChromeOptions()
     options.add_argument('--enable-javascript')
-    options.add_argument(f'user-agent={user_agent}')
+    options.add_argument(f'user-agent={USER_AGENT}')
+    options.add_argument('--ignore-certificate-errors')
+    options.add_argument('--ignore-ssl-errors')
 #     optoins.add_argument('--headless')
 #     options.add_extension(EXTENSION_PATH)
     options.add_argument(f'--user-data-dir={WEBDRIVER_SERVICE_DIR}')
@@ -129,13 +135,17 @@ if __name__ == '__main__':
     options.add_experimental_option('excludeSwitches', ['enable-automation'])
     options.add_experimental_option('useAutomationExtension', False)
 
+    breakpoint()
+#     load_json_cookies(FILE_NAME)  # only for debugging purpose
+
     driver = webdriver.Chrome(service=service, options=options)
+#     driver.get(URL_1)
+    driver.get('https://eu.mouser.com')
     driver.delete_all_cookies()
     load_json_cookies(FILE_NAME)
-#     driver.refresh()
-    driver.get(URL)
+    driver.refresh()
+#     driver.get(URL)
 #     save_cookies()
 #     driver.switch_to.new_window(WindowTypes.TAB)
-#     driver.get(URL_1)
 #     save_cookies()
-#     load_cookies())
+#     load_cook:es())

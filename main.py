@@ -1,6 +1,7 @@
 #        1         2         3         4         5         6         7
 # 34567890123456789012345678901234567890123456789012345678901234567890123456789
 import subprocess
+import platform
 import time
 from typing import Any, Dict, List
 
@@ -8,11 +9,11 @@ import pandas as pd
 import requests
 from pprint3x import pprint
 
-EXCEL_PATH = r'/mnt/c/users/user/dev/mouser_parse_proj/mouser_articles.xlsx'
+EXCEL_PATH = r'c:/users/user/dev/mouser_parse_proj/mouser_articles.xlsx'
 SHEET_NAME = 'articles'
 API_KEY = 'a6adbd72-cc89-4454-a34c-dd0f75364d52'
 d = {'SearchByKeywordRequest': {'keyword': '', }}
-url = f'https://api.mouser.com/api/v1.0/search/keyword?apiKey={API_KEY}'
+url = f'https://api.mouser.com/api/v2.0/search/keyword?apiKey={API_KEY}'
 
 article_frame = pd.read_excel(EXCEL_PATH, sheet_name=SHEET_NAME)
 article_frame['Article'] = article_frame['Article'].str.strip()
@@ -38,9 +39,17 @@ def x_string_gen(total_articles: int, art_no: int, length: int = 54) -> str:
     return f'processing status: [{x_string}]'
 
 
+def clear_screen() -> None:
+    if platform.system() == "Windows":
+        subprocess.run("cls", shell=True)
+    else:
+        subprocess.run("clear")
+
+
 def output(total_art: int, art_no: int, current_article: str, resp) -> None:
     """Generate screen outputs."""
-    subprocess.run('clear')
+#     subprocess.run('clear')
+    clear_screen()
     print(x_string_gen(total_art, art_no))
     print(f'art_no: {art_no}')
     print(f'article: {current_article}')
@@ -67,6 +76,7 @@ if __name__ == '__main__':
         if flag4:
             d['SearchByKeywordRequest']['keyword'] = each_article
             response = requests.request('post', url, json=d)
+#         if not response.ok: continue
         if (response.json()['Errors'] and
                 response.json()['Errors'][0]['ResourceKey'
                                              ] == 'MaxCallPerDay'):
@@ -83,7 +93,7 @@ if __name__ == '__main__':
             article_dict = {}
             article_dict['Article'] = each_article
             article_dict['Description'] = 'MaxCallPerDay'
-    #        article_dict['article_no'] = art_no
+#             article_dict['article_no'] = art_no
             article_list.append(article_dict)
             continue
 
@@ -143,7 +153,8 @@ if __name__ == '__main__':
                 for part in parts:
                     part_no += 1
                     if flag2:
-                        subprocess.run('clear')
+#                         subprocess.run('clear')
+                        clear_screen()
                         print(x_string_gen(total_articles, art_no))
                         print(f'art_no: {art_no}')
                         print(f'article: {each_article}')
