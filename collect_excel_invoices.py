@@ -1,15 +1,16 @@
 import os
 import re
-import subprocess
+from typing import List
+
+import openpyxl
 import pandas as pd
 
 
 pd.set_option('future.no_silent_downcasting', True)
 
 
-PATH = r'//147.45.104.168/share/Adelante_БР/Запросы от Вертикали'
-# folder_name = r'/140-HYVD-195 CNY'
-# file_name= r'/commercial invoice HYVD-195 CNY.xlsx'
+PATH = r'//147.45.104.168/share/Adelante_БР/Запросы от Вертикали/'
+path_to_save_xlsx_file = r'c:/users/user/dev/mouser_parse_proj/'
 expected_colheader = ['Description',
                       'Part No.',
                       'HS Code',
@@ -22,21 +23,55 @@ pattern1 = re.compile(r'^\d+-.*', re.I)
 pattern2 = re.compile(r'\.xls.*$', re.I)
 pattern3 = re.compile(r'commercial invoice .*\.xls.*$', re.I)
 invoices_df = pd.DataFrame()
+inv_header_df = pd.DataFrame()
+header_attrs_list: List[str] = ['Invoice number',
+                                'Date',
+                                'shipper',
+                                'Contact',
+                                'Receiver:',
+                                'Contract:',
+                                'Contract date:']
+inv_header_list = []
 processed_dirs = []
 rejected_dirs = []
 
 
+def get_inv_header_attrs(header_series):
+    inv_header_dict = {}
+    for attr in header_attrs_list:
+        try:
+            i = header_series.index.get_loc(header_series[header_series ==
+                                                          attr].index[0]) + 1
+        except KeyError:
+            inv_header_dict[attr] = None
+        else:
+            inv_header_dict[attr] = header_series.iloc[i]
+    return inv_header_dict
+
+
 def find_header_row(path, header_list):
-    excel_data = pd.ExcelFile(path)
-    for sheet_name in excel_data.sheet_names:
-        sheet = excel_data.parse(sheet_name, header=None)
-        if sheet.isnull().all(1).sum() == len(sheet):
-            continue
-        for idx, row in sheet[10:21].iterrows():
-            if set(header_list).issubset(set(row.dropna())):
-                print(idx, sheet_name)
-                return idx, sheet_name
-    return None, None
+    try:
+        excel_data = pd.ExcelFile(path)
+    except ValueError:
+        return None, None, None
+    else:
+        for sheet_name in excel_data.sheet_names:
+            sheet = excel_data.parse(sheet_name, header=None)
+            if sheet.isnull().all(1).sum() == len(sheet):
+                continue
+            for idx, row in sheet[10:21].iterrows():
+                if set(header_list[:4]).issubset(set(row.dropna()[:4])):
+                    print(idx, sheet_name)
+                    break
+            else:
+                idx, sheet_name, inv_header_dict = None, None, None
+            if idx and sheet_name:
+                sheet_header = sheet.iloc[:idx, :8].stack()
+                inv_header_dict = get_inv_header_attrs(sheet_header)
+                break
+        else:
+            idx, sheet_name, inv_header_dict = None, None, None
+    return idx, sheet_name, inv_header_dict
 #     raise ValueError('Header row not found')
 #     for no, sheet_name in enumerate(excel_data.sheet_names, start=1):
 #         print(f'{no}) {sheet_name}')
@@ -55,9 +90,11 @@ def find_header_row(path, header_list):
 
 
 def read_table(path):
-    header_row_no, sheet_name = find_header_row(path, expected_colheader)
+    global invoices_df
+    (header_row_no,
+     sheet_name,
+     inv_header_dict) = find_header_row(path, expected_colheader)
     if header_row_no and sheet_name:
-        global invoices_df
         df = pd.read_excel(path,
                            sheet_name=sheet_name,
                            header=header_row_no,
@@ -67,11 +104,61 @@ def read_table(path):
                            dtype={'HSCODE': str}
                            )
         df = df.iloc[:df[df.isnull().all(1)].index[0]]
-        df['QUAN'] = df['QUAN'].replace('[\$,]', '', regex=True).astype(int)
+        df['QUAN'] = df['QUAN'].replace(r'[\$,]', '', regex=True).astype(int)
+        df = df.assign(**inv_header_dict)
         invoices_df = pd.concat([invoices_df, df], ignore_index=True)
+        inv_header_dict['DIR_NAME'] = dir
+        inv_header_dict['DIR_PATH'] = path
+        inv_header_list.append(inv_header_dict)
         return sheet_name, len(df)
     else:
         return None, None
+
+
+def select_xls_file(files_list):
+    xls_files_list = [file for file in files_list if
+                      bool(pattern2.search(file))]
+    while xls_files_list:
+        print(f'\nТекущая директория: {dir}')
+        for offset, item in enumerate(xls_files_list, start=1):
+            print(f'{offset}. {item}')
+        print('0. Отмена (не выбирать никакой файл)')
+        reply = input(f'Введите число от 0 до {len(xls_files_list)}'
+                      f', для пропуска введите 0: ')
+        print()
+
+        try:
+            int(reply)
+        except ValueError:
+            print(f'ValueError! Требуется ввод цифры: '
+                  f'от 0..{len(xls_files_list)}. '
+                  f'Попробуем еще раз.\n')
+            continue
+        else:
+            num = int(reply) - 1
+            if num >= 0 and num < len(xls_files_list):
+                file = xls_files_list.pop(num)
+                path = os.path.join(PATH, dir, file)
+                resp1, resp2 = read_table(path)
+                if resp1 and resp2:
+                    return resp1, resp2, file
+                else:
+                    print(f'Этот файл: "{file}" не подходит.\n'
+                          f'Он содержит неподходящие данные.\n'
+                          f'Давайте попробуем выбрать другой файл.\n')
+                    continue
+            elif num == -1:
+                return None, None, None
+            else:
+                print(f'Требуется ввод цифры '
+                      f'от 0..{len(xls_files_list)}! '
+                      f'Попробуем еще раз.\n')
+                continue
+    print('Мы исчерпали все варианты xls(x) файлов в директории.\n' +
+          'Ни один не подошёл.\n' +
+          'Или в указанной директории нет файлов excel вообще.\n')
+    return None, None, None
+
 
 if __name__ == '__main__':
 
@@ -79,6 +166,7 @@ if __name__ == '__main__':
                 bool(pattern1.search(dir_name))]
 
     for counter, dir in enumerate(dir_list):
+        # if counter == 16: break
         files_list = os.listdir(os.path.join(PATH, dir))
         target_file = ''
         flag_1 = False
@@ -86,50 +174,66 @@ if __name__ == '__main__':
             if pattern3.match(each_file):
                 target_file = os.path.join(PATH, dir, each_file)
                 flag_1 = True
+                path = os.path.join(PATH, dir, target_file)
+                sheet_name, lines_number = read_table(path)
                 break
-#         if not target_file:
-#             xls_files_list = [file for file in files_list if
-#                                           bool(pattern2.search(file))]
-#             print(f'\nТекущая директория: {dir}')
-#             for offset, item in enumerate(xls_files_list, start=1):
-#                 print(f'{offset}. {item}')
-#             reply = input(f'Введите число от 1 до {len(xls_files_list)}'
-#                         f', для пропуска введите 0 или Enter: ')
-#             print()
-#             try:
-#                 int(reply)
-#             except ValueError:
-#                 target_file = ''
-#             else:
-#                 num = int(reply) - 1
-#                 if num >= 0 and num < len(xls_files_list):
-#                     target_file = xls_files_list[num]
-#                 else:
-#                     target_file = ''
-        if target_file:
-            path = os.path.join(PATH, dir, target_file)
-            sheet_name, lines_number = read_table(path)
-            if sheet_name and lines_number:
-                processed_dirs.append(dir)
-                print(f'Файл: "{dir}/{each_file if flag_1 else target_file}" '
-                      f'добавлен;\nЛист: "{sheet_name}", '
-                      f'Число строк: "{lines_number}"\n')
-            else: rejected_dirs.append((dir, os.path.join(PATH, dir)))
+        else:
+            sheet_name, lines_number, target_file = select_xls_file(files_list)
+        if sheet_name and lines_number:
+            processed_dirs.append(dir)
+            print(f'Файл: "{dir}/{each_file if flag_1 else target_file}" '
+                  f'добавлен;\nЛист: "{sheet_name}", '
+                  f'Число строк: "{lines_number}"\n')
         else:
             rejected_dirs.append((dir, os.path.join(PATH, dir)))
-            continue
+            print(f'В директории: "{dir}" не нашлось подходящего файла для '
+                  'импорта данных;\n'
+                  'Данные инвойса из этой папки не добавлены.\n')
+        continue
 
+    invoices_df.rename(columns={'DSCR': 'DSCR',
+                                'PARTNO': 'PARTNO',
+                                'HSCODE': 'HSCODE',
+                                'COO': 'COO',
+                                'QUAN': 'QUAN',
+                                'PRICE': 'PRICE',
+                                'BRAND': 'BRAND',
+                                'TOTAL': 'TOTAL',
+                                'Invoice number': 'INVC_NO',
+                                'Date': 'INVC_DD',
+                                'shipper': 'SHPR',
+                                'Contact': 'ATTN',
+                                'Receiver:': 'CNEE',
+                                'Contract:': 'CONT_NO',
+                                'Contract date:': 'CONT_DD'},
+                       inplace=True)
+    inv_header_df = pd.DataFrame(inv_header_list)
+    inv_header_df.rename(columns={'Invoice number': 'INVC_NO',
+                                  'Date': 'INVC_DD',
+                                  'shipper': 'SHPR',
+                                  'Contact': 'ATTN',
+                                  'Receiver:': 'CNEE',
+                                  'Contract:': 'CONT_NO',
+                                  'Contract date:': 'CONT_DD',
+                                  'dir_name': 'DIR_NAME',
+                                  'dir_path': 'DIR_PATH'
+                                  },
+                         inplace=True,
+                         errors='ignore')
     processed_dirs_df = pd.DataFrame({'processed_dirs': processed_dirs})
     rejected_dirs_df = pd.DataFrame(rejected_dirs, columns=[
                                                         'наименование_папки',
                                                         'путь_папки'])
-    with pd.ExcelWriter(r'c:/users/user/dev/mouser_parse_proj/invoices.xlsx', mode='a',
-                        if_sheet_exists='replace') as writer:
+    if not os.path.isfile(path_to_save_xlsx_file + 'invoices.xlsx'):
+        wb = openpyxl.Workbook()
+        wb.save(path_to_save_xlsx_file + 'invoices.xlsx')
+    with pd.ExcelWriter(path_to_save_xlsx_file + 'invoices.xlsx',
+                        mode='a',
+                        if_sheet_exists='replace'
+                        ) as writer:
         invoices_df.to_excel(writer, sheet_name='invoices', na_rep='Nan')
+        inv_header_df.to_excel(writer, sheet_name='inv_headers', na_rep='Nan')
         processed_dirs_df.to_excel(writer, sheet_name='processed_dirs')
         rejected_dirs_df.to_excel(writer, sheet_name='rejected_dirs')
-    print('Обработка инвойсов завершилась')
-
-
-
-
+    print('Обработка инвойсов завершилась\n')
+    print('Invoice processing has been finished\n')
