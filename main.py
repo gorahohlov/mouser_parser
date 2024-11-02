@@ -15,9 +15,19 @@ API_KEY = 'a6adbd72-cc89-4454-a34c-dd0f75364d52'
 d = {'SearchByKeywordRequest': {'keyword': '', }}
 url = f'https://api.mouser.com/api/v2.0/search/keyword?apiKey={API_KEY}'
 
-article_frame = pd.read_excel(EXCEL_PATH, sheet_name=SHEET_NAME)
-article_frame['Article'] = article_frame['Article'].str.strip()
+article_frame = pd.DataFrame()
+article_series = pd.Series()
+article_frame_old = pd.DataFrame()
+part_frame_old = pd.DataFrame()
+compliance_frame_old = pd.DataFrame()
+attributes_frame_old = pd.DataFrame()
+pricebreak_frame_old = pd.DataFrame()
+errors_frame_old = pd.DataFrame()
 
+attrs_set = set(['Article', 'Description', 'article_no',
+                 'ManufacturerPartNumber', 'Manufacturer', 'MouserPartNumber',
+                 'Category', 'DataSheetUrl', 'ProductDetailUrl', 'ImagePath',
+                 'part_no'])
 parts_list: List[Dict] = []
 compliance_list: List[Dict] = []
 attributes_list: List[Dict] = []
@@ -29,12 +39,12 @@ flag1: bool = True  # show server response details (by each request)
 flag2: bool = True  # show part's details (by each response)
 flag4: bool = True  # MaxCallPerDay error flag; if False don't send request
 art_no: int = 0
-total_articles: int = len(article_frame['Article'])
 
 
-def x_string_gen(total_articles: int, art_no: int, length: int = 54) -> str:
+def x_string_gen(articles: int, num: int, length: int = 54) -> str:
     """Generate status bar string."""
-    len_x_str = int(art_no // (total_articles / length))
+#     articles = 1000 if articles > 1000 else articles
+    len_x_str = int(num // (articles / length))
     x_string = 'x' * len_x_str + '.' * (length - len_x_str)
     return f'processing status: [{x_string}]'
 
@@ -46,12 +56,14 @@ def clear_screen() -> None:
         subprocess.run("clear")
 
 
-def output(total_art: int, art_no: int, current_article: str, resp) -> None:
+def output(articles: int, num: int, current_article: str, resp) -> None:
     """Generate screen outputs."""
 #     subprocess.run('clear')
     clear_screen()
-    print(x_string_gen(total_art, art_no))
-    print(f'art_no: {art_no}')
+    print(x_string_gen(articles, num))
+#     print(f'num: {num}')
+    print(f'num/total_num: {num}/{articles}')
+    print(f'art_no/articles: {art_no}/{total_articles}')
     print(f'article: {current_article}')
     if resp['SearchResults']:
         print(f'NumberOfResult: '
@@ -67,11 +79,109 @@ def output(total_art: int, art_no: int, current_article: str, resp) -> None:
 
 if __name__ == '__main__':
 
-    for each_article in article_frame['Article']:
+    try:
+        excel_data = pd.ExcelFile(EXCEL_PATH)
+    except (ValueError, FileNotFoundError):
+        print(f'Такого файла: {EXCEL_PATH} не существует!')
+    else:
+        article_frame = pd.read_excel(EXCEL_PATH,
+                                      sheet_name=SHEET_NAME,
+                                      dtype={'No': 'Int64',
+                                             'article_no': 'float16',
+                                             'part_no': 'float16',
+                                             'USHTS': 'object',
+                                             'CNHTS': 'object',
+                                             'CAHTS': 'object',
+                                             'JPHTS': 'object',
+                                             'KRHTS': 'object',
+                                             'TARIC': 'object',
+                                             'MXHTS': 'object',
+                                             'BRHTS': 'object',
+                                             'ECCN': 'object'}
+                                      )
+        article_frame['Article'] = article_frame['Article'].str.strip()
+        if attrs_set.issubset(article_frame.columns):
+            article_frame.set_index('No', inplace=True)
+            article_frame_old = article_frame[~article_frame['article_no'
+                                                             ].isna()]
+            art_no = len(article_frame_old)
+            article_series = article_frame[article_frame['article_no'
+                                                         ].isna()]['Article']
+            for sheet_name in excel_data.sheet_names:
+                if sheet_name == 'parts':
+                    part_frame_old = pd.read_excel(EXCEL_PATH,
+                                                   sheet_name='parts',
+                                               dtype={'No': 'Int64',
+                                                      'FactoryStock':
+                                                      'float32',
+                                                      'Min': 'float32',
+                                                      'Mult': 'float32',
+                                                      'MultiSimBlue':
+                                                      'float32',
+                                                      'AvailabilityInStock':
+                                                      'float32',
+                                                      'article_no': 'int16',
+                                                      'part_no': 'int16',
+                                                      'SalesMaximumOrderQty':
+                                                      'float32'}
+                                                   ).set_index('No')
+                elif sheet_name == 'compliance':
+                    compliance_frame_old = pd.read_excel(EXCEL_PATH,
+                                               sheet_name='compliance',
+                                               dtype={'No': 'Int64',
+                                                      'article_no': 'int16',
+                                                      'part_no': 'int16',
+                                                      'USHTS': 'object',
+                                                      'CNHTS': 'object',
+                                                      'CAHTS': 'object',
+                                                      'JPHTS': 'object',
+                                                      'KRHTS': 'object',
+                                                      'TARIC': 'object',
+                                                      'MXHTS': 'object',
+                                                      'BRHTS': 'object',
+                                                      'ECCN': 'object'}
+                                                         ).set_index('No')
+                elif sheet_name == 'attributes':
+                    attributes_frame_old = pd.read_excel(EXCEL_PATH,
+                                               sheet_name='attributes',
+                                               dtype={'No': 'Int64',
+                                                      'article_no': 'int16',
+                                                      'part_no': 'int16'}
+                                                         ).set_index('No')
+                elif sheet_name == 'pricebreak':
+                    pricebreak_frame_old = pd.read_excel(EXCEL_PATH,
+                                               sheet_name='pricebreak',
+                                               dtype={'No': 'Int64',
+                                                      'Quantity': 'int32',
+                                                      'article_no': 'int16',
+                                                      'part_no': 'int16'}
+                                                         ).set_index('No')
+                    pricebreak_frame_old['Price'] = pricebreak_frame_old[
+                            'Price'].replace(r'[\$,]',
+                                             '',
+                                             regex=True
+                                             ).astype('float32')
+                elif sheet_name == 'errors':
+                    try:
+                        errors_frame_old = pd.read_excel(EXCEL_PATH,
+                                               sheet_name='errors',
+                                               dtype={'No': 'Int64',
+                                                      'article_no': 'int16',
+                                                      'Id': 'int16'}
+                                                         ).set_index('No')
+                    except KeyError:
+                        pass
+#                       print(f'Лист {sheet_name} пуст!')
+        else:
+            article_series = article_frame['Article']
+
+    articles: int = len(article_series)
+    total_articles: int = len(article_frame_old) + articles
+    for num, each_article in enumerate(article_series, start=1):
         each_article = str(each_article)
         art_no += 1
 
-        """If MaxCallPerDay error occurs, we won't send remaining articels
+        """If MaxCallPerDay error occurs, we won't send remaining articles
         for requests."""
         if flag4:
             d['SearchByKeywordRequest']['keyword'] = each_article
@@ -81,15 +191,15 @@ if __name__ == '__main__':
                 response.json()['Errors'][0]['ResourceKey'
                                              ] == 'MaxCallPerDay'):
             flag4 = False
-            output(total_articles, art_no, each_article, response.json())
+            output(articles, num, each_article, response.json())
             print('Превышен лимит обращений к серверу в день\n' +
                   'Полученные данные будут сохранены в excel;\n' +
                   'остальные артикулы могут быть обработаны завтра.\n' +
                   'подождите еще немного...')
-            for each_error in response.json()['Errors']:
-                each_error['Article'] = each_article
-                each_error['art_no'] = art_no
-                errors_list.append(each_error)
+#             for each_error in response.json()['Errors']:
+#                 each_error['Article'] = each_article
+#                 each_error['art_no'] = art_no
+#                 errors_list.append(each_error)
             article_dict = {}
             article_dict['Article'] = each_article
             article_dict['Description'] = 'MaxCallPerDay'
@@ -100,28 +210,31 @@ if __name__ == '__main__':
         """If MaxCallPerMinute error occurs, we'll generate delay and repeat
         the requests until the response becomes success."""
         delay = 1
+        err_append_flag = True
         while (response.json()['Errors'] and
                response.json()['Errors'][0][
                                        'ResourceKey'] == 'MaxCallPerMinute'):
-            output(total_articles, art_no, each_article, response.json())
+            output(articles, num, each_article, response.json())
             print(f'Превышен лимит обращений к серверу в минуту\n'
                   f'Генерируем искусственную задержку {delay} секунд '
                   f'и повторим запрос...\n'
                   f'Ждите ...')
-            for each_error in response.json()['Errors']:
-                each_error['Article'] = each_article
-                each_error['art_no'] = art_no
-                errors_list.append(each_error)
+            if err_append_flag:
+                for each_error in response.json()['Errors']:
+                    each_error['Article'] = each_article
+                    each_error['article_no'] = art_no
+                    errors_list.append(each_error)
+                err_append_flag = False
             time.sleep(delay)
             delay += 1
             response = requests.request('post', url, json=d)
-        output(total_articles, art_no, each_article, response.json())
+        output(articles, num, each_article, response.json())
 
         """If the another error occurs, we'll handle this case."""
         if response.json()['Errors']:
             for each_error in response.json()['Errors']:
                 each_error['Article'] = each_article
-                each_error['art_no'] = art_no
+                each_error['article_no'] = art_no
                 errors_list.append(each_error)
             article_dict = {}
             article_dict['Article'] = each_article
@@ -153,10 +266,11 @@ if __name__ == '__main__':
                 for part in parts:
                     part_no += 1
                     if flag2:
-#                         subprocess.run('clear')
+                        # subprocess.run('clear')
                         clear_screen()
-                        print(x_string_gen(total_articles, art_no))
-                        print(f'art_no: {art_no}')
+                        print(x_string_gen(articles, num))
+                        print(f'num/total_num: {num}/{articles}')
+                        print(f'art_no/articles: {art_no}/{total_articles}')
                         print(f'article: {each_article}')
                         print(f'NumberOfResult: {results_nums}\n')
                         print('part:')
@@ -249,17 +363,35 @@ if __name__ == '__main__':
                     article_list.append(article_dict)
 
     part_frame = pd.DataFrame(parts_list,
-                              index=range(1, len(parts_list) + 1))
+                              index=range(len(part_frame_old) + 1,
+                                          len(part_frame_old) +
+                                          len(parts_list) + 1))
+    part_frame = pd.concat([part_frame_old, part_frame])
     compliance_frame = pd.DataFrame(compliance_list,
-                                    index=range(1, len(compliance_list) + 1))
+                                    index=range(len(compliance_frame_old) + 1,
+                                                len(compliance_frame_old) +
+                                                len(compliance_list) + 1))
+    compliance_frame = pd.concat([compliance_frame_old, compliance_frame])
     attributes_frame = pd.DataFrame(attributes_list,
-                                    index=range(1, len(attributes_list) + 1))
+                                    index=range(len(attributes_frame_old) + 1,
+                                                len(attributes_frame_old) +
+                                                len(attributes_list) + 1))
+    attributes_frame = pd.concat([attributes_frame_old, attributes_frame])
     pricebreak_frame = pd.DataFrame(pricebreak_list,
-                                    index=range(1, len(pricebreak_list) + 1))
+                                    index=range(len(pricebreak_frame_old) + 1,
+                                                len(pricebreak_frame_old) +
+                                                len(pricebreak_list) + 1))
+    pricebreak_frame = pd.concat([pricebreak_frame_old, pricebreak_frame])
     article_frame = pd.DataFrame(article_list,
-                                 index=range(1, len(article_list) + 1))
+                                 index=range(len(article_frame_old) + 1,
+                                             len(article_frame_old) +
+                                             len(article_list) + 1))
+    article_frame = pd.concat([article_frame_old, article_frame])
     errors_frame = pd.DataFrame(errors_list,
-                                index=range(1, len(errors_list) + 1))
+                                index=range(len(errors_frame_old) + 1,
+                                            len(errors_frame_old) +
+                                            len(errors_list) + 1))
+    errors_frame = pd.concat([errors_frame_old, errors_frame])
 
     with pd.ExcelWriter(EXCEL_PATH, mode='a', if_sheet_exists='replace') \
             as writer:
