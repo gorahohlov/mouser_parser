@@ -19,9 +19,9 @@ expected_colheader = ['Description',
                       'Unit price(CNY)',
                       'Brand',
                       'Total (CNY)']
-pattern1 = re.compile(r'^\d+-.*', re.I)
-pattern2 = re.compile(r'\.xls.*$', re.I)
-pattern3 = re.compile(r'commercial invoice .*\.xls.*$', re.I)
+pattern_11 = re.compile(r'^\d+-.*', re.I)
+pattern_12 = re.compile(r'\.xls.*$', re.I)
+pattern_13 = re.compile(r'commercial invoice .*\.xls.*$', re.I)
 invoices_df = pd.DataFrame()
 inv_header_df = pd.DataFrame()
 header_attrs_list: List[str] = ['Invoice number',
@@ -116,8 +116,9 @@ def read_table(path):
 
 
 def select_xls_file(files_list):
+    global frag_1
     xls_files_list = [file for file in files_list if
-                      bool(pattern2.search(file))]
+                      bool(pattern_12.search(file))]
     while xls_files_list:
         print(f'\nТекущая директория: {dir}')
         for offset, item in enumerate(xls_files_list, start=1):
@@ -148,6 +149,7 @@ def select_xls_file(files_list):
                           f'Давайте попробуем выбрать другой файл.\n')
                     continue
             elif num == -1:
+                frag_1 = True
                 return None, None, None
             else:
                 print(f'Требуется ввод цифры '
@@ -157,34 +159,43 @@ def select_xls_file(files_list):
     print('Мы исчерпали все варианты xls(x) файлов в директории.\n' +
           'Ни один не подошёл.\n' +
           'Или в указанной директории нет файлов excel вообще.\n')
+    frag_1 = True
     return None, None, None
 
 
 if __name__ == '__main__':
 
     dir_list = [dir_name for dir_name in os.listdir(PATH) if
-                bool(pattern1.search(dir_name))]
+                bool(pattern_11.search(dir_name))]
 
     for counter, dir in enumerate(dir_list):
         # if counter == 16: break
         files_list = os.listdir(os.path.join(PATH, dir))
         target_file = ''
-        flag_1 = False
+        flag_1 = False # True if file was selected by pattern; False - manually
         for each_file in files_list:
-            if pattern3.match(each_file):
+            if pattern_13.match(each_file):
                 target_file = os.path.join(PATH, dir, each_file)
                 flag_1 = True
                 path = os.path.join(PATH, dir, target_file)
                 sheet_name, lines_number = read_table(path)
-                break
-        else:
+                processed_dirs.append(dir)
+                print(f'Файл: "{dir}/{each_file if flag_1 else target_file}" '
+                      f'добавлен;\nЛист: "{sheet_name}", '
+                      f'Число строк: "{lines_number}"\n')
+                # break
+        # else:
+        # if not flag_1:
+        flag_2 = False # if valid file was not found in dir; True - was found;
+        while not flag_1:
             sheet_name, lines_number, target_file = select_xls_file(files_list)
-        if sheet_name and lines_number:
-            processed_dirs.append(dir)
-            print(f'Файл: "{dir}/{each_file if flag_1 else target_file}" '
-                  f'добавлен;\nЛист: "{sheet_name}", '
-                  f'Число строк: "{lines_number}"\n')
-        else:
+            if sheet_name and lines_number:
+                flag_2 = True
+                processed_dirs.append(dir)
+                print(f'Файл: "{dir}/{each_file if flag_1 else target_file}" '
+                      f'добавлен;\nЛист: "{sheet_name}", '
+                      f'Число строк: "{lines_number}"\n')
+        if not flag_2:
             rejected_dirs.append((dir, os.path.join(PATH, dir)))
             print(f'В директории: "{dir}" не нашлось подходящего файла для '
                   'импорта данных;\n'
