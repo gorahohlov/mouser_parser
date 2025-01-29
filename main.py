@@ -41,7 +41,35 @@ flag4: bool = True  # MaxCallPerDay error flag; if False don't send request
 art_no: int = 0
 
 
-def x_string_gen(articles: int, num: int, length: int = 54) -> str:
+def write_sheets_toexcel(**kwargs):
+    """Write processing dataframes to excel file."""
+    dataframes: Dict[srt, pd.DataFrame] = {}
+    for name, frames in kwargs.items():
+        df = pd.DataFrame(frames[1],
+                            index=range(len(frames[0]) + 1,
+                                        len(frames[0]) +
+                                        len(frames[1]) + 1)
+                          )
+        dataframes[name] = pd.concat([frames[0], df])
+
+    with pd.ExcelWriter(EXCEL_PATH, mode='a', if_sheet_exists='replace') \
+            as writer:
+        dataframes['part_frame'].to_excel(writer,
+                                          sheet_name='parts',
+                                          na_rep='NaN')
+        dataframes['compliance_frame'].to_excel(writer,
+                                                sheet_name='compliance')
+        dataframes['attributes_frame'].to_excel(writer,
+                                                sheet_name='attributes')
+        dataframes['pricebreak_frame'].to_excel(writer,
+                                                sheet_name='pricebreak')
+        dataframes['article_frame'].to_excel(writer,
+                                             sheet_name='articles')
+        dataframes['errors_frame'].to_excel(writer,
+                                            sheet_name='errors')
+
+
+def x_string_gen(articles: int, num: int, length: int = 48) -> str:
     """Generate status bar string."""
 #     articles = 1000 if articles > 1000 else articles
     len_x_str = int(num // (articles / length))
@@ -83,6 +111,7 @@ if __name__ == '__main__':
         excel_data = pd.ExcelFile(EXCEL_PATH)
     except (ValueError, FileNotFoundError):
         print(f'Такого файла: {EXCEL_PATH} не существует!')
+        pass
     else:
         article_frame = pd.read_excel(EXCEL_PATH,
                                       sheet_name=SHEET_NAME,
@@ -178,6 +207,7 @@ if __name__ == '__main__':
     articles: int = len(article_series)
     total_articles: int = len(article_frame_old) + articles
     for num, each_article in enumerate(article_series, start=1):
+#         if num == 48: break
         each_article = str(each_article)
         art_no += 1
 
@@ -210,7 +240,7 @@ if __name__ == '__main__':
         """If MaxCallPerMinute error occurs, we'll generate delay and repeat
         the requests until the response becomes success."""
         delay = 1
-        err_append_flag = True
+        err_append_flag = True # to avoid adding same error_info many times
         while (response.json()['Errors'] and
                response.json()['Errors'][0][
                                        'ResourceKey'] == 'MaxCallPerMinute'):
@@ -362,44 +392,55 @@ if __name__ == '__main__':
                     article_dict['article_no'] = art_no
                     article_list.append(article_dict)
 
-    part_frame = pd.DataFrame(parts_list,
-                              index=range(len(part_frame_old) + 1,
-                                          len(part_frame_old) +
-                                          len(parts_list) + 1))
-    part_frame = pd.concat([part_frame_old, part_frame])
-    compliance_frame = pd.DataFrame(compliance_list,
-                                    index=range(len(compliance_frame_old) + 1,
-                                                len(compliance_frame_old) +
-                                                len(compliance_list) + 1))
-    compliance_frame = pd.concat([compliance_frame_old, compliance_frame])
-    attributes_frame = pd.DataFrame(attributes_list,
-                                    index=range(len(attributes_frame_old) + 1,
-                                                len(attributes_frame_old) +
-                                                len(attributes_list) + 1))
-    attributes_frame = pd.concat([attributes_frame_old, attributes_frame])
-    pricebreak_frame = pd.DataFrame(pricebreak_list,
-                                    index=range(len(pricebreak_frame_old) + 1,
-                                                len(pricebreak_frame_old) +
-                                                len(pricebreak_list) + 1))
-    pricebreak_frame = pd.concat([pricebreak_frame_old, pricebreak_frame])
-    article_frame = pd.DataFrame(article_list,
-                                 index=range(len(article_frame_old) + 1,
-                                             len(article_frame_old) +
-                                             len(article_list) + 1))
-    article_frame = pd.concat([article_frame_old, article_frame])
-    errors_frame = pd.DataFrame(errors_list,
-                                index=range(len(errors_frame_old) + 1,
-                                            len(errors_frame_old) +
-                                            len(errors_list) + 1))
-    errors_frame = pd.concat([errors_frame_old, errors_frame])
+    write_sheets_toexcel(**{'part_frame': (part_frame_old, parts_list),
+                            'compliance_frame': (compliance_frame_old,
+                                                 compliance_list),
+                            'attributes_frame': (attributes_frame_old,
+                                                 attributes_list),
+                            'pricebreak_frame': (pricebreak_frame_old,
+                                                 pricebreak_list),
+                            'article_frame': (article_frame_old, article_list),
+                            'errors_frame': (errors_frame_old, errors_list)
+                            }
+                         )
 
-    with pd.ExcelWriter(EXCEL_PATH, mode='a', if_sheet_exists='replace') \
-            as writer:
-        part_frame.to_excel(writer, sheet_name='parts', na_rep='NaN')
-        compliance_frame.to_excel(writer, sheet_name='compliance')
-        attributes_frame.to_excel(writer, sheet_name='attributes')
-        pricebreak_frame.to_excel(writer, sheet_name='pricebreak')
-        article_frame.to_excel(writer, sheet_name='articles')
-        errors_frame.to_excel(writer, sheet_name='errors')
+#     part_frame = pd.DataFrame(parts_list,
+#                               index=range(len(part_frame_old) + 1,
+#                                           len(part_frame_old) +
+#                                           len(parts_list) + 1))
+#     part_frame = pd.concat([part_frame_old, part_frame])
+#     compliance_frame = pd.DataFrame(compliance_list,
+#                                     index=range(len(compliance_frame_old) + 1,
+#                                                 len(compliance_frame_old) +
+#                                                 len(compliance_list) + 1))
+#     compliance_frame = pd.concat([compliance_frame_old, compliance_frame])
+#     attributes_frame = pd.DataFrame(attributes_list,
+#                                     index=range(len(attributes_frame_old) + 1,
+#                                                 len(attributes_frame_old) +
+#                                                 len(attributes_list) + 1))
+#     attributes_frame = pd.concat([attributes_frame_old, attributes_frame])
+#     pricebreak_frame = pd.DataFrame(pricebreak_list,
+#                                     index=range(len(pricebreak_frame_old) + 1,
+#                                                 len(pricebreak_frame_old) +
+#                                                 len(pricebreak_list) + 1))
+#     pricebreak_frame = pd.concat([pricebreak_frame_old, pricebreak_frame])
+#     article_frame = pd.DataFrame(article_list,
+#                                  index=range(len(article_frame_old) + 1,
+#                                              total_articles + 1))
+#     article_frame = pd.concat([article_frame_old, article_frame])
+#     errors_frame = pd.DataFrame(errors_list,
+#                                 index=range(len(errors_frame_old) + 1,
+#                                             len(errors_frame_old) +
+#                                             len(errors_list) + 1))
+#     errors_frame = pd.concat([errors_frame_old, errors_frame])
+# 
+#     with pd.ExcelWriter(EXCEL_PATH, mode='a', if_sheet_exists='replace') \
+#             as writer:
+#         part_frame.to_excel(writer, sheet_name='parts', na_rep='NaN')
+#         compliance_frame.to_excel(writer, sheet_name='compliance')
+#         attributes_frame.to_excel(writer, sheet_name='attributes')
+#         pricebreak_frame.to_excel(writer, sheet_name='pricebreak')
+#         article_frame.to_excel(writer, sheet_name='articles')
+#         errors_frame.to_excel(writer, sheet_name='errors')
     print('Data download from mouser server has been successfully completed')
     print('Загрузка данных с сервера mouser.com была успешно выполнена')
