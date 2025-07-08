@@ -2,7 +2,9 @@
 import json
 
 from selenium import webdriver
+import undetected_chromedriver as ucd
 from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.common.by import By
 from selenium.webdriver.common.window import WindowTypes
 from lxml import html
 from fake_useragent import UserAgent

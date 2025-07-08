@@ -64,13 +64,13 @@ def find_header_row(path, header_list):
                     print(idx, sheet_name)
                     break
             else:
-                idx, sheet_name, inv_header_dict = None, None, None
+                idx = sheet_name = inv_header_dict = None
             if idx and sheet_name:
                 sheet_header = sheet.iloc[:idx, :8].stack()
                 inv_header_dict = get_inv_header_attrs(sheet_header)
                 break
         else:
-            idx, sheet_name, inv_header_dict = None, None, None
+            idx = sheet_name = inv_header_dict = None
     return idx, sheet_name, inv_header_dict
 #     raise ValueError('Header row not found')
 #     for no, sheet_name in enumerate(excel_data.sheet_names, start=1):

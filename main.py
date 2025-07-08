@@ -43,17 +43,18 @@ art_no: int = 0
 
 def write_sheets_toexcel(**kwargs):
     """Write processing dataframes to excel file."""
-    dataframes: Dict[srt, pd.DataFrame] = {}
+    dataframes: Dict[str, pd.DataFrame] = {}
     for name, frames in kwargs.items():
         df = pd.DataFrame(frames[1],
-                            index=range(len(frames[0]) + 1,
-                                        len(frames[0]) +
-                                        len(frames[1]) + 1)
+                          index=range(len(frames[0]) + 1,
+                                      len(frames[0]) +
+                                      len(frames[1]) + 1)
                           )
         dataframes[name] = pd.concat([frames[0], df])
 
-    with pd.ExcelWriter(EXCEL_PATH, mode='a', if_sheet_exists='replace') \
-            as writer:
+    with pd.ExcelWriter(EXCEL_PATH,
+                        mode='a',
+                        if_sheet_exists='replace') as writer:
         dataframes['part_frame'].to_excel(writer,
                                           sheet_name='parts',
                                           na_rep='NaN')
@@ -111,7 +112,7 @@ if __name__ == '__main__':
         excel_data = pd.ExcelFile(EXCEL_PATH)
     except (ValueError, FileNotFoundError):
         print(f'Такого файла: {EXCEL_PATH} не существует!')
-        pass
+#         pass
     else:
         article_frame = pd.read_excel(EXCEL_PATH,
                                       sheet_name=SHEET_NAME,
@@ -399,7 +400,8 @@ if __name__ == '__main__':
                                                  attributes_list),
                             'pricebreak_frame': (pricebreak_frame_old,
                                                  pricebreak_list),
-                            'article_frame': (article_frame_old, article_list),
+                            'article_frame': (article_frame_old,
+                                              article_list),
                             'errors_frame': (errors_frame_old, errors_list)
                             }
                          )
@@ -433,7 +435,7 @@ if __name__ == '__main__':
 #                                             len(errors_frame_old) +
 #                                             len(errors_list) + 1))
 #     errors_frame = pd.concat([errors_frame_old, errors_frame])
-# 
+#
 #     with pd.ExcelWriter(EXCEL_PATH, mode='a', if_sheet_exists='replace') \
 #             as writer:
 #         part_frame.to_excel(writer, sheet_name='parts', na_rep='NaN')
