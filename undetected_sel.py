@@ -54,42 +54,42 @@ class ElementHelper:
         """Waits until the element become visible"""
         return self.wait.until(EC.presence_of_element_located((by, value)))
 
-def initialize_mouser_ui(driver):
-    """Initial mouser chrome session setup"""
-    driver.get(URL)
-    wait = WebDriverWait(driver, 6)
-    try:
-        wait.until(
-            EC.element_to_be_clickable(
-                (By.ID, 'onetrust-pc-btn-handler')
-            )
-        ).click()
-        wait.until(
-            EC.element_to_be_clickable(
-                (By.XPATH, 
-                 '//button[@class="save-preference-btn-handler '
-                 'onetrust-close-btn-handler"]'
-                 )
-            )
-        ).click()
-        wait.until(
-            EC.element_to_be_clickable(
-                (By.ID, '1_hylRightFlagText')
-            )
-        ).click()
-        wait.until(
-            EC.presence_of_element_located(
-                (By.CSS_SELECTOR, 'button[lang="en"]')
-            )
-        ).click()
-        wait.until(
-            EC.presence_of_element_located(
-                (By.CSS_SELECTOR, 'button[lang="ru"]')
-            )
-        ).click()
-        print('Initial site setup mouser.com completed')
-    except TimeoutException:
-        print('Initial site setup mouser.com failed to complete normally')
+# def initialize_mouser_ui(driver):
+#     """Initial mouser chrome session setup"""
+#     driver.get(URL)
+#     wait = WebDriverWait(driver, 6)
+#     try:
+#         wait.until(
+#             EC.element_to_be_clickable(
+#                 (By.ID, 'onetrust-pc-btn-handler')
+#             )
+#         ).click()
+#         wait.until(
+#             EC.element_to_be_clickable(
+#                 (By.XPATH, 
+#                  '//button[@class="save-preference-btn-handler '
+#                  'onetrust-close-btn-handler"]'
+#                  )
+#             )
+#         ).click()
+#         wait.until(
+#             EC.element_to_be_clickable(
+#                 (By.ID, '1_hylRightFlagText')
+#             )
+#         ).click()
+#         wait.until(
+#             EC.presence_of_element_located(
+#                 (By.CSS_SELECTOR, 'button[lang="en"]')
+#             )
+#         ).click()
+#         wait.until(
+#             EC.presence_of_element_located(
+#                 (By.CSS_SELECTOR, 'button[lang="ru"]')
+#             )
+#         ).click()
+#         print('Initial site setup mouser.com completed')
+#     except TimeoutException:
+#         print('Initial site setup mouser.com failed to complete normally')
 
 #     driver.find_element(By.ID, 'onetrust-pc-btn-handler').click()
 #     driver.find_element(By.XPATH, 
@@ -103,10 +103,11 @@ def initialize_mouser_ui(driver):
 
 def start_driver_with_position(width=788, height=864): # x=755, y=0,)
     options = uc.ChromeOptions()
-    options.add_argument("--headless")
-    options.add_argument(f"--window-size={width}, {height}")
-    options.add_argument("--disable-blink-features=AutomationControlled")
+#     options.add_argument("--headless")
+#     options.add_argument(f"--window-size={width},{height}")
+#     options.add_argument("--disable-blink-features=AutomationControlled")
     driver = uc.Chrome(options=options)
+    driver.set_window_size(width, height)
     driver.set_window_position(x=755, y=0)
 #     driver.set_window_size(width, height)
     return driver
@@ -115,45 +116,24 @@ def save_page_as_pdf(driver, datasheet_path):
     part_number_el = driver.find_element(
         By.XPATH, '//span[@id="spnManufacturerPartNumber"]')
     part_number = part_number_el.text.strip()
-
-    # 2 Формируем полный путь
     filename = f"{part_number}.pdf"
     full_path = os.path.join(datasheet_path, filename)
-
-    # 3 Используем DevTools Protocol (CDP) для сохранения PDF
     result = driver.execute_cdp_cmd("Page.printToPDF", {
             "printBackground": True,
             "landscape": False,
-            "paperWidth": 8.27,  # A4 width (in inches)
-            "paperHeight": 11.69}  # A4 height
+            "paperWidth": 8.27,
+            "paperHeight": 11.69}
             )
-
-    # 4 Записываем PDF в файл
     with open(full_path, "wb") as f:
             f.write(base64.b64decode(result["data"]))
-
     print(f" PDF сохранён как: {full_path}")
 
 
 if __name__ == "__main__":
 
-    # options = uc.ChromeOptions()
-    # driver = uc.Chrome(options=options)
-
-    # driver.set_window_position(1190, 1)
-    # driver.set_window_size(735, 1080)
-
-    # Открываем страницу
-    # URL = (
-    #     'https://eu.mouser.com/ProductDetail/Altera/EPCS1SI8N?qs='
-    #     'jblrfmjbeiEDfo5ju%2FfMLw%3D%3D'
-    # )
-
-    # driver.get(URL)
-
     driver = start_driver_with_position()
     driver.get(URL)
-    driver.save_screenshot("./dev/mouser_parse_proj/screenshots/screen.png")
+#     driver.save_screenshot("./dev/mouser_parse_proj/screenshots/screen.png")
 #     initialize_mouser_ui(driver)
     helper = ElementHelper(driver)
     helper.click_when_clickable(By.ID, 'onetrust-pc-btn-handler')
@@ -183,32 +163,29 @@ if __name__ == "__main__":
 
     save_page_as_pdf(driver, DATASHEET_DIR)
 
-    # Получаем все строки таблицы спецификаций
-    rows = driver.find_elements(
-                    By.XPATH, '//tr[contains(@id, "pdp_specs_SpecList")]')
+#     # Получаем все строки таблицы спецификаций
+#     rows = driver.find_elements(
+#                     By.XPATH, '//tr[contains(@id, "pdp_specs_SpecList")]')
+#     spec_string = ''
+#     for row in rows:
+#         spec_string += row.text + ', '
+#     print(f'Specification characteristics:\n{spec_string}')
 
-    spec_string = ''
-    for row in rows:
-        spec_string += row.text + ', '
-    print(f'Specification characteristics:\n{spec_string}')
-
-    # Получаем все <li> внутри ol.breadcrumb, у которых есть class и <a href>
-    breadcrumb_items = driver.find_elements(
-                         By.XPATH, 
-                         '//ol[@class="breadcrumb"]/li[@class][a[@href]]')
-
-    # Извлекаем текст
-    breadcrumb_texts = []
-    for li in breadcrumb_items:
-        try:
-            text = li.text.strip()
-            if text:
-                breadcrumb_texts.append(text)
-        except Exception as e:
-            print(f"Ошибка при извлечении breadcrumb: {e}")
-
-    print("\nНавигационная цепочка (breadcrumb):")
-    print(" > ".join(breadcrumb_texts))
+#     # Получаем все <li> внутри ol.breadcrumb, у которых есть class и <a href>
+#     breadcrumb_items = driver.find_elements(
+#                          By.XPATH, 
+#                          '//ol[@class="breadcrumb"]/li[@class][a[@href]]')
+#     # Извлекаем текст
+#     breadcrumb_texts = []
+#     for li in breadcrumb_items:
+#         try:
+#             text = li.text.strip()
+#             if text:
+#                 breadcrumb_texts.append(text)
+#         except Exception as e:
+#             print(f"Ошибка при извлечении breadcrumb: {e}")
+#     print("\nНавигационная цепочка (breadcrumb):")
+#     print(" > ".join(breadcrumb_texts))
 
     # Закрываем драйвер
     print("Модуль штатно завершил все процедуры обработки "
