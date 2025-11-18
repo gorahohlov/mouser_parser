@@ -1,17 +1,25 @@
+#!/usr/bin/env python3
 #        1         2         3         4         5         6         7
 # 34567890123456789012345678901234567890123456789012345678901234567890123456789
 import subprocess
 import platform
 import time
-from typing import Any, Dict, List
+import os
+from typing import Any, Dict, List, Optional
+from dotenv import load_dotenv
 
 import pandas as pd
 import requests
 from pprint3x import pprint
 
-EXCEL_PATH = r'c:/users/user/dev/mouser_parse_proj/mouser_articles.xlsx'
+load_dotenv()
+
+# EXCEL_PATH = r'c:/users/user/dev/mouser_parse_proj/mouser_articles.xlsx'
+# FILE_PATH = 'commercial invoice LTTC-011.xlsx'
+FILE_PATH = input('Введите имя файла из "c:/users/user/downloads/": ')
+EXCEL_PATH = r'c:/users/user/downloads/' + FILE_PATH
 SHEET_NAME = 'articles'
-API_KEY = 'a6adbd72-cc89-4454-a34c-dd0f75364d52'
+API_KEY = os.getenv('MOUSER_API_KEY')
 d = {'SearchByKeywordRequest': {'keyword': '', }}
 url = f'https://api.mouser.com/api/v2.0/search/keyword?apiKey={API_KEY}'
 
@@ -141,24 +149,27 @@ if __name__ == '__main__':
                 if sheet_name == 'parts':
                     part_frame_old = pd.read_excel(EXCEL_PATH,
                                                    sheet_name='parts',
-                                               dtype={'No': 'Int64',
-                                                      'FactoryStock':
-                                                      'float32',
-                                                      'Min': 'float32',
-                                                      'Mult': 'float32',
-                                                      'MultiSimBlue':
-                                                      'float32',
-                                                      'AvailabilityInStock':
-                                                      'float32',
-                                                      'article_no': 'int16',
-                                                      'part_no': 'int16',
-                                                      'SalesMaximumOrderQty':
-                                                      'float32'}
+                                                   dtype={
+                                                       'No': 'Int64',
+                                                       'FactoryStock':
+                                                       'float32',
+                                                       'Min': 'float32',
+                                                       'Mult': 'float32',
+                                                       'MultiSimBlue':
+                                                       'float32',
+                                                       'AvailabilityInStock':
+                                                       'float32',
+                                                       'article_no': 'int16',
+                                                       'part_no': 'int16',
+                                                       'SalesMaximumOrderQty':
+                                                       'float32'}
                                                    ).set_index('No')
                 elif sheet_name == 'compliance':
-                    compliance_frame_old = pd.read_excel(EXCEL_PATH,
-                                               sheet_name='compliance',
-                                               dtype={'No': 'Int64',
+                    compliance_frame_old = pd.read_excel(
+                                                  EXCEL_PATH,
+                                                  sheet_name='compliance',
+                                                  dtype={
+                                                      'No': 'Int64',
                                                       'article_no': 'int16',
                                                       'part_no': 'int16',
                                                       'USHTS': 'object',
@@ -172,19 +183,23 @@ if __name__ == '__main__':
                                                       'ECCN': 'object'}
                                                          ).set_index('No')
                 elif sheet_name == 'attributes':
-                    attributes_frame_old = pd.read_excel(EXCEL_PATH,
-                                               sheet_name='attributes',
-                                               dtype={'No': 'Int64',
-                                                      'article_no': 'int16',
-                                                      'part_no': 'int16'}
+                    attributes_frame_old = pd.read_excel(
+                                                     EXCEL_PATH,
+                                                     sheet_name='attributes',
+                                                     dtype={
+                                                         'No': 'Int64',
+                                                         'article_no': 'int16',
+                                                         'part_no': 'int16'}
                                                          ).set_index('No')
                 elif sheet_name == 'pricebreak':
-                    pricebreak_frame_old = pd.read_excel(EXCEL_PATH,
-                                               sheet_name='pricebreak',
-                                               dtype={'No': 'Int64',
-                                                      'Quantity': 'int32',
-                                                      'article_no': 'int16',
-                                                      'part_no': 'int16'}
+                    pricebreak_frame_old = pd.read_excel(
+                                                EXCEL_PATH,
+                                                sheet_name='pricebreak',
+                                                dtype={
+                                                       'No': 'Int64',
+                                                       'Quantity': 'int32',
+                                                       'article_no': 'int16',
+                                                       'part_no': 'int16'}
                                                          ).set_index('No')
                     pricebreak_frame_old['Price'] = pricebreak_frame_old[
                             'Price'].replace(r'[\$,]',
@@ -193,11 +208,13 @@ if __name__ == '__main__':
                                              ).astype('float32')
                 elif sheet_name == 'errors':
                     try:
-                        errors_frame_old = pd.read_excel(EXCEL_PATH,
-                                               sheet_name='errors',
-                                               dtype={'No': 'Int64',
-                                                      'article_no': 'int16',
-                                                      'Id': 'int16'}
+                        errors_frame_old = pd.read_excel(
+                                                 EXCEL_PATH,
+                                                 sheet_name='errors',
+                                                 dtype={
+                                                        'No': 'Int64',
+                                                        'article_no': 'int16',
+                                                        'Id': 'int16'}
                                                          ).set_index('No')
                     except KeyError:
                         pass
@@ -207,8 +224,9 @@ if __name__ == '__main__':
 
     articles: int = len(article_series)
     total_articles: int = len(article_frame_old) + articles
+    response: Optional[requests.Response] = None
     for num, each_article in enumerate(article_series, start=1):
-#         if num == 48: break
+        # if num == 48: break
         each_article = str(each_article)
         art_no += 1
 
@@ -241,7 +259,7 @@ if __name__ == '__main__':
         """If MaxCallPerMinute error occurs, we'll generate delay and repeat
         the requests until the response becomes success."""
         delay = 1
-        err_append_flag = True # to avoid adding same error_info many times
+        err_append_flag = True  # to avoid adding same error_info many times
         while (response.json()['Errors'] and
                response.json()['Errors'][0][
                                        'ResourceKey'] == 'MaxCallPerMinute'):
@@ -288,7 +306,7 @@ if __name__ == '__main__':
                 article_dict = {}
                 article_dict['Article'] = each_article
                 article_dict['Description'
-                             ] = 'HasNoSearchResults(EmptyPartList)'
+                             ] = 'NoSearchResultsFound(EmptyPartList)'
                 article_dict['article_no'] = art_no
                 article_list.append(article_dict)
             else:
@@ -412,19 +430,19 @@ if __name__ == '__main__':
 #                                           len(parts_list) + 1))
 #     part_frame = pd.concat([part_frame_old, part_frame])
 #     compliance_frame = pd.DataFrame(compliance_list,
-#                                     index=range(len(compliance_frame_old) + 1,
-#                                                 len(compliance_frame_old) +
-#                                                 len(compliance_list) + 1))
+#                                    index=range(len(compliance_frame_old) + 1,
+#                                                len(compliance_frame_old) +
+#                                                len(compliance_list) + 1))
 #     compliance_frame = pd.concat([compliance_frame_old, compliance_frame])
 #     attributes_frame = pd.DataFrame(attributes_list,
-#                                     index=range(len(attributes_frame_old) + 1,
-#                                                 len(attributes_frame_old) +
-#                                                 len(attributes_list) + 1))
+#                                    index=range(len(attributes_frame_old) + 1,
+#                                                len(attributes_frame_old) +
+#                                                len(attributes_list) + 1))
 #     attributes_frame = pd.concat([attributes_frame_old, attributes_frame])
 #     pricebreak_frame = pd.DataFrame(pricebreak_list,
-#                                     index=range(len(pricebreak_frame_old) + 1,
-#                                                 len(pricebreak_frame_old) +
-#                                                 len(pricebreak_list) + 1))
+#                                    index=range(len(pricebreak_frame_old) + 1,
+#                                                len(pricebreak_frame_old) +
+#                                                len(pricebreak_list) + 1))
 #     pricebreak_frame = pd.concat([pricebreak_frame_old, pricebreak_frame])
 #     article_frame = pd.DataFrame(article_list,
 #                                  index=range(len(article_frame_old) + 1,

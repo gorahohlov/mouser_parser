@@ -2,6 +2,7 @@ import os
 import base64
 
 import undetected_chromedriver as uc
+from selenium_stealth import stealth
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -32,7 +33,7 @@ class ElementHelper:
         return []
 
     def click_when_clickable(self, by, value):
-        """Waits clickable elem loading and click to it"""
+        """Waits clickable elem loading and click it"""
         try:
             element = self.wait.until(EC.element_to_be_clickable((by, value)))
             element.click()
@@ -54,6 +55,7 @@ class ElementHelper:
         """Waits until the element become visible"""
         return self.wait.until(EC.presence_of_element_located((by, value)))
 
+#region commented "Initial mouser chrome session setup"
 # def initialize_mouser_ui(driver):
 #     """Initial mouser chrome session setup"""
 #     driver.get(URL)
@@ -100,16 +102,42 @@ class ElementHelper:
 #     driver.find_element(By.ID, '1_hylRightFlagText').click()
 #     driver.find_element(By.ID, "1_divRightFlagImg").click()
 #     driver.find_element(By.CSS_SELECTOR, 'button[lang="en"]').click()
+#endregion
 
 def start_driver_with_position(width=788, height=864): # x=755, y=0,)
     options = uc.ChromeOptions()
-#     options.add_argument("--headless")
-#     options.add_argument(f"--window-size={width},{height}")
-#     options.add_argument("--disable-blink-features=AutomationControlled")
+    # options.add_argument("--headless")
+    options.add_argument(f"--window-size={width},{height}")
+    options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+                         'AppleWebKit/537.36 (KHTML, like Gecko) '
+                         'Chrome/138.0.0.0 Safari/537.36')
+    # options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                        #  "AppleWebKit/537.36 (KHTML, like Gecko) "
+                        #  "Chrome/120.0.0.0 Safari/537.36")
+    # Отключаем автоматические признаки автоматизации
+    options.add_argument("--disable-blink-features=AutomationControlled")
+    # options.add_experimental_option("excludeSwitches", ["enable-automation"])
+    # options.add_experimental_option('useAutomationExtension', False)
     driver = uc.Chrome(options=options)
+    stealth(driver,
+            languages=["en-US", "en"],
+            vendor="Google Inc.",
+            platform="Win64",
+            webgl_vendor="Google Inc.",
+            renderer="Google Inc.",
+            fix_hairline=False,
+            )
     driver.set_window_size(width, height)
     driver.set_window_position(x=755, y=0)
-#     driver.set_window_size(width, height)
+    # Маскируем navigator.webdriver
+    driver.execute_cdp_cmd(
+        "Page.addScriptToEvaluateOnNewDocument",
+        {
+            "source": """
+                Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
+            """
+        },
+    )
     return driver
 
 def save_page_as_pdf(driver, datasheet_path):
@@ -163,19 +191,22 @@ if __name__ == "__main__":
 
     save_page_as_pdf(driver, DATASHEET_DIR)
 
-#     # Получаем все строки таблицы спецификаций
+#region
+#     # Getting all lines specification table
 #     rows = driver.find_elements(
 #                     By.XPATH, '//tr[contains(@id, "pdp_specs_SpecList")]')
 #     spec_string = ''
 #     for row in rows:
 #         spec_string += row.text + ', '
 #     print(f'Specification characteristics:\n{spec_string}')
+#endregion
 
-#     # Получаем все <li> внутри ol.breadcrumb, у которых есть class и <a href>
+#region
+#     # Getting all tags <li> inside of ol.breadcrumb, which have class and <a href>
 #     breadcrumb_items = driver.find_elements(
 #                          By.XPATH, 
 #                          '//ol[@class="breadcrumb"]/li[@class][a[@href]]')
-#     # Извлекаем текст
+#     # Obtain element content (innertext)
 #     breadcrumb_texts = []
 #     for li in breadcrumb_items:
 #         try:
@@ -183,11 +214,12 @@ if __name__ == "__main__":
 #             if text:
 #                 breadcrumb_texts.append(text)
 #         except Exception as e:
-#             print(f"Ошибка при извлечении breadcrumb: {e}")
-#     print("\nНавигационная цепочка (breadcrumb):")
+#             print(f"Error has occured when extracting breadcrumb: {e}")
+#     print("\nNavigation chain (breadcrumb):")
 #     print(" > ".join(breadcrumb_texts))
+#endregion
 
     # Закрываем драйвер
-    print("Модуль штатно завершил все процедуры обработки "
-          "и завершает свою работу")
+    print("The module has completed all processing procedures normally "
+          "and is completing its work.")
     driver.quit()
