@@ -98,7 +98,7 @@ elements = driver.find_elements(By.XPATH,
 elem_list = [elem.text for elem in elements]
 elem_dict = {key: val for key, val in 
              (elem.replace(':\n ', ': ').split(': ', 1) for elem in elem_list)
-             }
+            }
 # elem_dict = {}
 # for elem in elem_list:
 #     norm_elem = elem.replace(':\n ', ': ')

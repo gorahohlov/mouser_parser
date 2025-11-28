@@ -14,8 +14,8 @@ from selenium.common.exceptions import StaleElementReferenceException
 from pprint import pprint as pp
 
 
-DATASHEET_DIR = r'c:\users\gorah\downloads\mouser_datasheets'
-EXCEL_FILE = r'c:\users\gorah\downloads\mouser_datasheets\mouser_data.xlsx'
+DATASHEET_DIR = r'c:\users\user\dev\mouser_parse_proj\mouser_datasheets'
+EXCEL_FILE = r'c:\users\user\dev\mouser_parse_proj\mouser_datasheets\mouser_data.xlsx'
 
 ARTICLE_LIST = [
     'APHCM2012SYCK-F01',
@@ -144,7 +144,7 @@ class ElementHelper:
 #     driver.find_element(By.CSS_SELECTOR, 'button[lang="en"]').click()
 #endregion
 
-def start_driver_with_position(width=1530, height=864, x=1, y=1, headless=False):
+def start_driver_with_position(width=1910, height=1030, x=1, y=1, headless=False):
     """Initialize undetected Chrome driver with minimal settings"""
     options = uc.ChromeOptions()
     
@@ -375,8 +375,8 @@ def process_article(driver, helper, article, datasheet_dir, first_article=False)
 
 if __name__ == "__main__":
     # Настройки запуска
-    TEST_MODE = True  # True - тестовый режим (первые 2 артикула), False - полная обработка
-    HEADLESS = True   # True - headless режим, False - видимое окно браузера
+    TEST_MODE = False  # True - тестовый режим (первые 2 артикула), False - полная обработка
+    HEADLESS = False   # True - headless режим, False - видимое окно браузера
     SKIP_INIT = False  # True - пропустить инициализацию (cookies/язык), если уже настроено
     
     # Создаем директорию для PDF если не существует

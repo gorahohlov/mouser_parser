@@ -312,6 +312,9 @@ if __name__ == '__main__':
             else:
                 parts = response.json()['SearchResults']['Parts']
                 flag3: bool = True  # Add article_info into article_list
+                flag5: bool = True  # if parts does not contain each_article, 
+                                    # append first part
+
                 for part in parts:
                     part_no += 1
                     if flag2:
@@ -383,6 +386,24 @@ if __name__ == '__main__':
                     parts_list.append(part)
 
                     """Processing article_sheet."""
+                    if flag5:  # if parts does not contain each_article, append first part
+                        article_dict_0 = {}
+                        article_dict_0['Article'] = each_article
+                        article_dict_0['ManufacturerPartNumber'] = part[
+                                                    'ManufacturerPartNumber']
+                        article_dict_0['Manufacturer'] = part['Manufacturer']
+                        article_dict_0['MouserPartNumber'] = part[
+                                                    'MouserPartNumber']
+                        article_dict_0['Category'] = part['Category']
+                        article_dict_0['Description'] = part['Description']
+                        article_dict_0['DataSheetUrl'] = part['DataSheetUrl']
+                        article_dict_0['ProductDetailUrl'] = part[
+                                                        'ProductDetailUrl']
+                        article_dict_0['ImagePath'] = part['ImagePath']
+                        article_dict_0['article_no'] = art_no
+                        article_dict_0['part_no'] = part_no
+                        article_dict_0.update(ProductCompliance)
+                        flag5 = False
                     if (part['ManufacturerPartNumber'] == each_article and
                             flag3):
                         article_dict = {}
@@ -404,12 +425,12 @@ if __name__ == '__main__':
                         flag3 = False
                         article_list.append(article_dict)
                 if flag3:
-                    article_dict = {}
-                    article_dict['Article'] = each_article
-                    article_dict['Description'
-                                 ] = 'ThereAreNoMatchesWithPartList'
-                    article_dict['article_no'] = art_no
-                    article_list.append(article_dict)
+                    # article_dict = {}
+                    # article_dict['Article'] = each_article
+                    # article_dict['Description'
+                                 # ] = 'ThereAreNoMatchesWithPartList'
+                    # article_dict['article_no'] = art_no
+                    article_list.append(article_dict_0)
 
     write_sheets_toexcel(**{'part_frame': (part_frame_old, parts_list),
                             'compliance_frame': (compliance_frame_old,
