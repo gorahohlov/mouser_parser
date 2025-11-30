@@ -11,12 +11,14 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
 from selenium.common.exceptions import StaleElementReferenceException
+from pathlib import Path
 from pprint import pprint as pp
 
 
 DATASHEET_DIR = r'c:\users\user\dev\mouser_parse_proj\mouser_datasheets'
-EXCEL_FILE = r'c:\users\user\dev\mouser_parse_proj\mouser_datasheets\mouser_data.xlsx'
-
+EXCEL_FILE = (r'c:\users\user\dev\mouser_parse_proj'
+              r'\mouser_datasheets\mouser_data.xlsx')
+DEFAULT_DIR = Path(r'c:\users\user\downloads')
 ARTICLE_LIST = [
     'APHCM2012SYCK-F01',
     'APHCM2012ZGC-F01',
@@ -45,11 +47,6 @@ ARTICLE_LIST = [
 ]
 
 
-def human_delay(min_sec=0.5, max_sec=2.0):
-    """Random delay to simulate human behavior"""
-    time.sleep(random.uniform(min_sec, max_sec))
-
-
 class ElementHelper:
     def __init__(self, driver, timeout=10):
         self.driver = driver
@@ -76,7 +73,7 @@ class ElementHelper:
             human_delay(0.5, 1.5)
             return True
         except TimeoutException:
-            print(f"Timeout waiting for element: {by}={value}")
+            print(f'Timeout waiting for element: {by}={value}')
             return False
 
     def get_attribute_safe(self, xpath, attr, retries=3):
@@ -95,64 +92,34 @@ class ElementHelper:
         wait = WebDriverWait(self.driver, timeout) if timeout else self.wait
         return wait.until(EC.presence_of_element_located((by, value)))
 
-#region commented "Initial mouser chrome session setup"
-# def initialize_mouser_ui(driver):
-#     """Initial mouser chrome session setup"""
-#     driver.get(URL)
-#     wait = WebDriverWait(driver, 6)
-#     try:
-#         wait.until(
-#             EC.element_to_be_clickable(
-#                 (By.ID, 'onetrust-pc-btn-handler')
-#             )
-#         ).click()
-#         wait.until(
-#             EC.element_to_be_clickable(
-#                 (By.XPATH, 
-#                  '//button[@class="save-preference-btn-handler '
-#                  'onetrust-close-btn-handler"]'
-#                  )
-#             )
-#         ).click()
-#         wait.until(
-#             EC.element_to_be_clickable(
-#                 (By.ID, '1_hylRightFlagText')
-#             )
-#         ).click()
-#         wait.until(
-#             EC.presence_of_element_located(
-#                 (By.CSS_SELECTOR, 'button[lang="en"]')
-#             )
-#         ).click()
-#         wait.until(
-#             EC.presence_of_element_located(
-#                 (By.CSS_SELECTOR, 'button[lang="ru"]')
-#             )
-#         ).click()
-#         print('Initial site setup mouser.com completed')
-#     except TimeoutException:
-#         print('Initial site setup mouser.com failed to complete normally')
 
-#     driver.find_element(By.ID, 'onetrust-pc-btn-handler').click()
-#     driver.find_element(By.XPATH, 
-#                         '//button[text()="Cookie Settings"]').click()
-#     driver.find_element(By.XPATH, 
-#                         '//button[@class="save-preference-btn-handler '
-#                         'onetrust-close-btn-handler"]').click()
-#     driver.find_element(By.ID, '1_hylRightFlagText').click()
-#     driver.find_element(By.ID, "1_divRightFlagImg").click()
-#     driver.find_element(By.CSS_SELECTOR, 'button[lang="en"]').click()
-#endregion
+def get_valid_path() -> Path:
+    user_input = input('Введите путь или имя файла: ').strip()
+    p = Path(user_input)
+
+    if p.name == user_input and not p.is_absolute():
+        full_path = DEFAULT_DIR / p
+    elif not p.is_absolute():
+        full_path = Path.cwd() / p
+    else:
+        full_path = p
+    if not full_path.exists():
+        raise FileNotFoundError(f'Файл или каталог не найден: {full_path}')
+    return full_path
+
+def human_delay(min_sec=0.5, max_sec=2.0):
+    """Random delay to simulate human behavior"""
+    time.sleep(random.uniform(min_sec, max_sec))
 
 def start_driver_with_position(width=1910, height=1030, x=1, y=1, headless=False):
     """Initialize undetected Chrome driver with minimal settings"""
     options = uc.ChromeOptions()
     
     if headless:
-        options.add_argument("--headless=new")
+        options.add_argument('--headless=new')
     
     # Минимальный набор опций как в term_cmds.py
-    options.add_argument(f"--window-size={width},{height}")
+    options.add_argument(f'--window-size={width},{height}')
     
     # Создаем драйвер с минимальными настройками (как в term_cmds.py)
     driver = uc.Chrome(options=options, version_main=None)
@@ -170,7 +137,7 @@ def save_page_as_pdf(driver, datasheet_path, article=None):
             By.XPATH, '//span[@id="spnManufacturerPartNumber"]')
         part_number = part_number_el.text.strip()
     except Exception as e:
-        print(f"Не удалось получить part number: {e}")
+        print(f'Не удалось получить part number: {e}')
         part_number = article if article else "unknown"
     
     filename = f"{part_number}.pdf"
@@ -182,69 +149,69 @@ def save_page_as_pdf(driver, datasheet_path, article=None):
         return {'saved': False, 'exists': True, 'filename': filename, 'path': full_path}
     
     try:
-        result = driver.execute_cdp_cmd("Page.printToPDF", {
-                "printBackground": True,
-                "landscape": False,
-                "paperWidth": 8.27,
-                "paperHeight": 11.69}
+        result = driver.execute_cdp_cmd('Page.printToPDF', {
+                'printBackground': True,
+                'landscape': False,
+                'paperWidth': 8.27,
+                'paperHeight': 11.69}
                 )
         with open(full_path, "wb") as f:
-                f.write(base64.b64decode(result["data"]))
-        print(f"PDF сохранён: {filename}")
+                f.write(base64.b64decode(result['data']))
+        print(f'PDF сохранён: {filename}')
         return {'saved': True, 'exists': False, 'filename': filename, 'path': full_path}
     except Exception as e:
-        print(f"Ошибка сохранения PDF: {e}")
+        print(f'Ошибка сохранения PDF: {e}')
         return {'saved': False, 'exists': False, 'filename': filename, 'error': str(e)}
 
 
 def initialize_mouser_session(driver, helper):
     """Initial mouser site setup: cookies, language, region"""
-    print("Инициализация сессии Mouser...")
+    print('Инициализация сессии Mouser...')
     
     # Ждем загрузки страницы
     human_delay(3, 5)
     
     # Cookie settings - увеличены таймауты
     if helper.click_when_clickable(By.ID, 'onetrust-pc-btn-handler', timeout=20):
-        print("  [OK] Cookie Settings открыты")
+        print('  [OK] Cookie Settings открыты')
     else:
         print("  [SKIP] Cookie Settings не найдены (возможно уже приняты)")
     
     if helper.click_when_clickable(By.XPATH, 
                                    '//button[@class="save-preference-btn-handler '
                                    'onetrust-close-btn-handler"]', timeout=15):
-        print("  [OK] Cookie Settings сохранены")
+        print('  [OK] Cookie Settings сохранены')
     else:
-        print("  [SKIP] Кнопка подтверждения cookies не найдена")
+        print('  [SKIP] Кнопка подтверждения cookies не найдена')
     
     # Выбор региона
     if helper.click_when_clickable(By.XPATH, '//span[text()="Mouser Europe"]', timeout=15):
-        print("  [OK] Регион: Mouser Europe")
+        print('  [OK] Регион: Mouser Europe')
         human_delay(2, 3)
     else:
-        print("  [SKIP] Выбор региона не требуется")
+        print('  [SKIP] Выбор региона не требуется')
     
     # Выбор языка
     if helper.click_when_clickable(By.ID, 'ddlLanguageMenuButton', timeout=15):
-        print("  [OK] Меню языка открыто")
+        print('  [OK] Меню языка открыто')
         
         if helper.click_when_clickable(By.XPATH, '//button[text()="русский язык"]', timeout=10):
             print("  [OK] Язык: русский")
             # Ждем применения языка
             human_delay(3, 5)
         else:
-            print("  [SKIP] Русский язык не найден в меню")
+            print('  [SKIP] Русский язык не найден в меню')
     else:
-        print("  [SKIP] Меню языка не найдено (возможно уже выбран)")
+        print('  [SKIP] Меню языка не найдено (возможно уже выбран)')
     
-    print("Инициализация завершена\n")
+    print('Инициализация завершена\n')
     return True
 
 
 def get_article_url(article):
     """Generate Mouser search URL for article"""
     # Можно использовать прямой поиск
-    return f"https://eu.mouser.com/c/?q={article}"
+    return f'https://eu.mouser.com/c/?q={article}'
 
 
 def extract_product_data(driver, helper, article):
@@ -263,7 +230,7 @@ def extract_product_data(driver, helper, article):
         data['breadcrumb'] = header_list
         print(f"Заголовок: {' > '.join(header_list)}")
     except Exception as e:
-        print(f"Не удалось получить breadcrumb: {e}")
+        print(f'Не удалось получить breadcrumb: {e}')
     
     try:
         # Получаем спецификации
@@ -273,24 +240,24 @@ def extract_product_data(driver, helper, article):
                      (elem.replace(':\n ', ': ').split(': ', 1) for elem in elem_list)
                      }
         data['specifications'] = elem_dict
-        print(f"Спецификаций найдено: {len(elem_dict)}")
+        print(f'Спецификаций найдено: {len(elem_dict)}')
     except Exception as e:
-        print(f"Не удалось получить спецификации: {e}")
+        print(f'Не удалось получить спецификации: {e}')
     
     try:
         # Получаем part number
         part_number_el = driver.find_element(By.XPATH, '//span[@id="spnManufacturerPartNumber"]')
         data['part_number'] = part_number_el.text.strip()
-        print(f"Part Number: {data['part_number']}")
+        print(f'Part Number: {data['part_number']}')
     except Exception as e:
-        print(f"Не удалось получить part number: {e}")
+        print(f'Не удалось получить part number: {e}')
     
     return data
 
 
 def save_to_excel(all_data, excel_file):
     """Save collected data to Excel file"""
-    print(f"\nСохранение данных в Excel: {excel_file}")
+    print(f'\nСохранение данных в Excel: {excel_file}')
     
     # Подготовка данных для DataFrame
     rows = []
@@ -321,12 +288,12 @@ def save_to_excel(all_data, excel_file):
     # Сохраняем в Excel
     try:
         df.to_excel(excel_file, index=False, engine='openpyxl')
-        print(f"[OK] Данные успешно сохранены в Excel")
-        print(f"  Строк: {len(df)}")
-        print(f"  Колонок: {len(df.columns)}")
+        print(f'[OK] Данные успешно сохранены в Excel')
+        print(f'  Строк: {len(df)}')
+        print(f'  Колонок: {len(df.columns)}')
         return True
     except Exception as e:
-        print(f"Ошибка сохранения в Excel: {e}")
+        print(f'Ошибка сохранения в Excel: {e}')
         # Пробуем сохранить в CSV как запасной вариант
         csv_file = excel_file.replace('.xlsx', '.csv')
         try:
@@ -334,19 +301,19 @@ def save_to_excel(all_data, excel_file):
             print(f"[OK] Данные сохранены в CSV: {csv_file}")
             return True
         except Exception as e2:
-            print(f"Ошибка сохранения в CSV: {e2}")
+            print(f'Ошибка сохранения в CSV: {e2}')
             return False
 
 
 def process_article(driver, helper, article, datasheet_dir, first_article=False):
     """Process single article: load page, extract data, save PDF"""
-    print(f"\n{'='*60}")
-    print(f"Обработка артикула: {article}")
-    print(f"{'='*60}")
+    print(f'\n{'='*60}')
+    print(f'Обработка артикула: {article}')
+    print(f'{'='*60}')
     
     # Формируем URL
     search_url = get_article_url(article)
-    print(f"Загружаем: {search_url}")
+    print(f'Загружаем: {search_url}')
     
     driver.get(search_url)
     human_delay(3, 5)
@@ -355,7 +322,7 @@ def process_article(driver, helper, article, datasheet_dir, first_article=False)
     if first_article:
         initialize_mouser_session(driver, helper)
         # После инициализации может потребоваться перезагрузка страницы
-        print(f"Перезагружаем страницу артикула...")
+        print(f'Перезагружаем страницу артикула...')
         driver.get(search_url)
         human_delay(2, 4)
     
@@ -368,7 +335,7 @@ def process_article(driver, helper, article, datasheet_dir, first_article=False)
     data['pdf_exists'] = pdf_result.get('exists', False)
     data['pdf_filename'] = pdf_result.get('filename', '')
     
-    print(f"Артикул {article} обработан")
+    print(f'Артикул {article} обработан')
     
     return data
 
@@ -385,14 +352,14 @@ if __name__ == "__main__":
     # Определяем список артикулов для обработки
     articles_to_process = ARTICLE_LIST[:6] if TEST_MODE else ARTICLE_LIST
     
-    print("="*60)
-    print("Запуск автоматизированного сбора данных с Mouser.com")
-    print("="*60)
-    print(f"Режим: {'ТЕСТОВЫЙ' if TEST_MODE else 'ПОЛНАЯ ОБРАБОТКА'}")
-    print(f"Браузер: {'Headless' if HEADLESS else 'Видимый'}")
-    print(f"Артикулов для обработки: {len(articles_to_process)}")
-    print(f"Директория для PDF: {DATASHEET_DIR}")
-    print(f"Файл Excel: {EXCEL_FILE}\n")
+    print('='*60)
+    print('Запуск автоматизированного сбора данных с Mouser.com')
+    print('='*60)
+    print(f'Режим: {'ТЕСТОВЫЙ' if TEST_MODE else 'ПОЛНАЯ ОБРАБОТКА'}')
+    print(f'Браузер: {'Headless' if HEADLESS else 'Видимый'}')
+    print(f'Артикулов для обработки: {len(articles_to_process)}')
+    print(f'Директория для PDF: {DATASHEET_DIR}')
+    print(f'Файл Excel: {EXCEL_FILE}\n')
     
     # Инициализируем драйвер
     driver = start_driver_with_position(headless=HEADLESS)
@@ -400,17 +367,17 @@ if __name__ == "__main__":
     
     # Инициализация сессии (только один раз, если требуется)
     if not SKIP_INIT:
-        print("Загружаем главную страницу Mouser для инициализации...")
+        print('Загружаем главную страницу Mouser для инициализации...')
         driver.get('https://eu.mouser.com')
         human_delay(2, 4)
         initialize_mouser_session(driver, helper)
     else:
-        print("Пропуск инициализации (SKIP_INIT=True)")
+        print('Пропуск инициализации (SKIP_INIT=True)')
     
     # Обрабатываем все артикулы
     all_data = []
     for idx, article in enumerate(articles_to_process, 1):
-        print(f"\nПрогресс: {idx}/{len(articles_to_process)}")
+        print(f'\nПрогресс: {idx}/{len(articles_to_process)}')
         try:
             data = process_article(
                 driver, 
@@ -424,11 +391,11 @@ if __name__ == "__main__":
             # Задержка между артикулами
             if idx < len(articles_to_process):
                 delay = random.uniform(2, 5)
-                print(f"Пауза {delay:.1f}с перед следующим артикулом...")
+                print(f'Пауза {delay:.1f}с перед следующим артикулом...')
                 time.sleep(delay)
                 
         except Exception as e:
-            print(f"ОШИБКА при обработке {article}: {e}")
+            print(f'ОШИБКА при обработке {article}: {e}')
             all_data.append({
                 'article': article,
                 'error': str(e),
@@ -438,11 +405,11 @@ if __name__ == "__main__":
             })
     
     # Закрываем драйвер
-    print("\n" + "="*60)
-    print("Обработка завершена")
-    print("="*60)
-    print(f"Успешно обработано: {len([d for d in all_data if 'error' not in d])}")
-    print(f"Ошибок: {len([d for d in all_data if 'error' in d])}")
+    print('\n' + '='*60)
+    print('Обработка завершена')
+    print('='*60)
+    print(f'Успешно обработано: {len([d for d in all_data if 'error' not in d])}')
+    print(f'Ошибок: {len([d for d in all_data if 'error' in d])}')
     
     driver.quit()
     
@@ -454,6 +421,6 @@ if __name__ == "__main__":
     try:
         with open(results_file, 'w', encoding='utf-8') as f:
             json.dump(all_data, f, ensure_ascii=False, indent=2)
-        print(f"Результаты также сохранены в JSON: {results_file}")
+        print(f'Результаты также сохранены в JSON: {results_file}')
     except Exception as e:
-        print(f"Не удалось сохранить JSON: {e}")
+        print(f'Не удалось сохранить JSON: {e}')
